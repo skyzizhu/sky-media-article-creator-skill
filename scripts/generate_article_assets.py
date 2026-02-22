@@ -39,7 +39,7 @@ IMAGE_API_URL = os.environ.get(
 )
 # 优先使用 IMAGE_API_KEY，如未设置则回退到 ALI_DASHSCOPE_API_KEY
 IMAGE_API_KEY = os.environ.get("IMAGE_API_KEY") or os.environ.get(
-    "ALI_DASHSCOPE_API_KEY", "sk-f27f0dd277af4823a90bca92d2c6fc32"
+    "ALI_DASHSCOPE_API_KEY", ""
 )
 
 
