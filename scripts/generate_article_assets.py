@@ -13,7 +13,7 @@ Expected workflow:
   - Parses IMAGE markers
   - Calls an external image API for each marker
   - Saves all images into the output directory
-  - Replaces inline markers with Markdown image tags and writes an updated article file
+  - Replaces inline markers with plain-text placeholders and writes an updated article file
 
 You MUST customize the IMAGE_API_URL / headers / payload format to match your own API.
 """
@@ -22,6 +22,7 @@ import argparse
 import os
 import re
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -39,7 +40,7 @@ IMAGE_API_URL = os.environ.get(
 )
 # 优先使用 IMAGE_API_KEY，如未设置则回退到 ALI_DASHSCOPE_API_KEY
 IMAGE_API_KEY = os.environ.get("IMAGE_API_KEY") or os.environ.get(
-    "ALI_DASHSCOPE_API_KEY", ""
+    "ALI_DASHSCOPE_API_KEY", "sk-f27f0dd277af4823a90bca92d2c6fc32"
 )
 
 
@@ -146,7 +147,32 @@ def _aspect_to_size(aspect: Optional[str]) -> Optional[str]:
     return ratio_map.get(aspect, None)
 
 
-def call_image_api(prompt: str, aspect: Optional[str], forbid_people: bool = False) -> bytes:
+def _enhance_prompt(prompt: str, kind: str) -> str:
+    """
+    Add stable quality constraints so generated images stay aligned with article core content.
+    """
+    base = prompt.strip()
+    if kind == "cover":
+        suffix = (
+            "。封面必须围绕文章核心内容进行视觉表达，画面中需有清晰、可读的大号中文主题文字；"
+            "除主题文字外，加入2-4个与核心内容强相关的图形或物体元素（如文档、齿轮、波形、图表、时间轴、二维码、设备界面等）；"
+            "构图简洁，信息层次清晰，避免无关装饰。"
+        )
+    else:
+        suffix = (
+            "。插图需紧扣对应段落的核心信息，只呈现与该段主题直接相关的元素；"
+            "减少无关背景和装饰，优先表达关键动作、关键对比或关键结果。"
+        )
+    return f"{base}{suffix}"
+
+
+def call_image_api(
+    prompt: str,
+    aspect: Optional[str],
+    forbid_people: bool = False,
+    max_retries: int = 2,
+    retry_delay_sec: float = 1.5,
+) -> bytes:
     """
     Call DashScope Qwen image API and return raw image bytes.
 
@@ -196,10 +222,25 @@ def call_image_api(prompt: str, aspect: Optional[str], forbid_people: bool = Fal
     if size:
         payload["parameters"]["size"] = size
 
-    resp = requests.post(IMAGE_API_URL, json=payload, headers=headers, timeout=120)
-    resp.raise_for_status()
+    attempt = 0
+    last_err: Optional[Exception] = None
 
-    data = resp.json()
+    while attempt <= max_retries:
+        try:
+            resp = requests.post(IMAGE_API_URL, json=payload, headers=headers, timeout=120)
+            resp.raise_for_status()
+            data = resp.json()
+            break
+        except Exception as err:
+            last_err = err
+            if attempt >= max_retries:
+                raise RuntimeError(
+                    f"Image API request failed after {max_retries + 1} attempts: {err}"
+                ) from err
+            time.sleep(retry_delay_sec * (attempt + 1))
+            attempt += 1
+    else:
+        raise RuntimeError(f"Image API request failed: {last_err}")
 
     # 兼容 DashScope 不同返回结构：
     # 1) 老格式: {"output": {"results": [{"url": "..."}]}}
@@ -263,6 +304,7 @@ def process_article(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     cover_generated = False
+    inline_counter = 0
     image_paths: List[Path] = []
 
     # We'll reconstruct the article text while replacing inline markers.
@@ -285,11 +327,15 @@ def process_article(
             filename = "cover.png"
             cover_generated = True
         else:  # inline
-            filename = f"inline_{marker.index}.png"
+            inline_counter += 1
+            filename = f"inline_{inline_counter}.png"
 
         aspect = marker.aspect or (default_cover_aspect if marker.kind == "cover" else None)
         # 封面图默认禁止出现人物/人脸；插图是否包含人物由 prompt 自行控制
-        raw = call_image_api(marker.prompt, aspect, forbid_people=(marker.kind == "cover"))
+        effective_prompt = _enhance_prompt(marker.prompt, marker.kind)
+        raw = call_image_api(
+            effective_prompt, aspect, forbid_people=(marker.kind == "cover")
+        )
 
         img_path = output_dir / filename
         with img_path.open("wb") as f:
@@ -300,11 +346,11 @@ def process_article(
         if marker.kind == "cover":
             replacement = ""
         else:
-            alt = marker.name or f"插图{marker.index}"
+            alt = marker.name or f"插图{inline_counter}"
             # 在纯文本文章中，用结构化标记提示插图位置，供用户在自媒体平台手动插入图片
             # 说明：
             # - 名称=来自 IMAGE 标记的 name 字段（或默认“插图X”）
-            # - 文件=对应生成的图片文件名（例如 inline_2.png）
+            # - 文件=对应生成的图片文件名（例如 inline_1.png）
             replacement = f"【插图：名称={alt}；文件={filename}】"
 
         pieces.append(replacement)
