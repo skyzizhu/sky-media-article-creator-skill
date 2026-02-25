@@ -147,21 +147,79 @@ def _aspect_to_size(aspect: Optional[str]) -> Optional[str]:
     return ratio_map.get(aspect, None)
 
 
+def _simplify_cover_text(text: str) -> str:
+    """
+    Simplify long cover text into short keyword-style copy.
+    Example:
+    "我用vibe coding做了一款工具App，也重新理解了AI产品"
+    -> "vibe coding + 工具APP"
+    """
+    raw = text.strip()
+    if not raw:
+        return raw
+
+    lowered = raw.lower()
+    has_vibe = "vibe coding" in lowered or ("vibe" in lowered and "coding" in lowered)
+    has_tool_app = ("工具" in raw) and ("app" in lowered or "应用" in raw)
+    has_ai = "ai" in lowered or "人工智能" in raw
+    has_product = "产品" in raw
+
+    parts: List[str] = []
+    if has_vibe:
+        parts.append("vibe coding")
+    if has_tool_app:
+        parts.append("工具APP")
+    elif "工具" in raw:
+        parts.append("工具软件")
+    if has_ai and has_product and "AI产品" not in parts:
+        parts.append("AI产品")
+    elif has_ai and "AI" not in parts:
+        parts.append("AI")
+
+    if not parts:
+        # Fallback: keep a short, readable chunk.
+        compact = re.sub(r"[，。、“”\"'：:；;！!？?\s]+", "", raw)
+        return compact[:8]
+
+    return " + ".join(parts[:2])
+
+
+def _normalize_cover_text_in_prompt(prompt: str) -> str:
+    """
+    If the prompt contains a long quoted cover text, replace it with a simplified version.
+    """
+    candidates = re.findall(r"[“\"]([^”\"]{8,80})[”\"]", prompt)
+    if not candidates:
+        return prompt
+
+    target = max(candidates, key=len)
+    # If the quoted text is already short enough, keep it.
+    if len(target) <= 14:
+        return prompt
+
+    simplified = _simplify_cover_text(target)
+    return prompt.replace(target, simplified, 1)
+
+
 def _enhance_prompt(prompt: str, kind: str) -> str:
     """
     Add stable quality constraints so generated images stay aligned with article core content.
     """
     base = prompt.strip()
     if kind == "cover":
+        base = _normalize_cover_text_in_prompt(base)
         suffix = (
             "。封面必须围绕文章核心内容进行视觉表达，画面中需有清晰、可读的大号中文主题文字；"
+            "封面显示文字不要照搬文章完整标题，应压缩为2-8字或2-4个关键词短语（可用“关键词A + 关键词B”形式）；"
             "除主题文字外，加入2-4个与核心内容强相关的图形或物体元素（如文档、齿轮、波形、图表、时间轴、二维码、设备界面等）；"
+            "色调浓郁有张力，使用中高饱和与清晰对比，避免灰暗、发闷、低饱和、雾蒙蒙的画面；"
             "构图简洁，信息层次清晰，避免无关装饰。"
         )
     else:
         suffix = (
             "。插图需紧扣对应段落的核心信息，只呈现与该段主题直接相关的元素；"
-            "减少无关背景和装饰，优先表达关键动作、关键对比或关键结果。"
+            "减少无关背景和装饰，优先表达关键动作、关键对比或关键结果；"
+            "整体风格保持色彩浓郁、对比明确、视觉有活力，避免灰暗低饱和风格。"
         )
     return f"{base}{suffix}"
 
