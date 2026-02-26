@@ -162,7 +162,7 @@ description: >-
 
 ## 个人语气与风格沉淀（references）
 
-为了让生成的文章越来越贴近你的个人风格，本技能可以配合 `references/personal_tone_examples.md` 使用：
+为了让生成的文章越来越贴近你的个人风格，本技能可以配合 `skill/references/personal_tone_examples.md` 使用：
 
 - 当该文件存在且不为空时，在写文章或重写段落前，可优先简要阅读其中内容，提炼你的常见语气特征，例如：
   - 句子长短节奏（是否常用短句、是否习惯中间有停顿）
@@ -378,7 +378,7 @@ description: >-
    - 如用户明确要求“给我整篇更新后的版本”，再在完整文章中替换对应段落后输出全文。
 
 5. 与个人语气 references 的配合：
-   - 在局部重写前，可优先参考 `references/personal_tone_examples.md` 中同类型的示例片段，帮助新段落更贴近用户既有风格。
+   - 在局部重写前，可优先参考 `skill/references/personal_tone_examples.md` 中同类型的示例片段，帮助新段落更贴近用户既有风格。
    - 若重写后的段落比原先更贴近用户期望风格，用户可选择将其复制到 references 文件中，作为后续类似场景的写作参考。
 
 ## 封面与插图生成工作流
@@ -436,9 +436,9 @@ description: >-
 
 4. 调用生图脚本生成图片并更新文章：
    - 当文章定稿并插入了 IMAGE 标记后，调用脚本：
-     - 路径：`skills/sky-media-article-creator-skill/scripts/generate_article_assets.py`
+     - 路径：`skills/sky-media-article-creator-skill/skill/scripts/generate_article_assets.py`
      - 示例命令：  
-       `python skills/sky-media-article-creator-skill/scripts/generate_article_assets.py --article-file /path/to/article.md --output-dir /path/to/output/folder --cover-aspect 16:9`
+       `python skills/sky-media-article-creator-skill/skill/scripts/generate_article_assets.py --article-file /path/to/article.md --output-dir /path/to/output/folder --cover-aspect 16:9`
   - 脚本行为（见下一节）：
      - 读取文章，解析所有 IMAGE 标记。
      - 调用外部图片生成 API，为每个标记生成一张图片。
@@ -462,7 +462,7 @@ description: >-
 本技能包含一个脚本，用于根据文章中的 IMAGE 标记调用外部 AI 生图 API，生成封面与插图，并将文章与图片统一输出到同一文件夹。
 
 - 脚本路径：  
-  `skills/sky-media-article-creator-skill/scripts/generate_article_assets.py`
+  `skills/sky-media-article-creator-skill/skill/scripts/generate_article_assets.py`
 
 - 依赖：
   - Python 3
@@ -475,7 +475,7 @@ description: >-
 - 基本用法示例：
 
   ```bash
-  python skills/sky-media-article-creator-skill/scripts/generate_article_assets.py \
+  python skills/sky-media-article-creator-skill/skill/scripts/generate_article_assets.py \
     --article-file /path/to/article.txt \
     --output-dir /path/to/output/folder \
     --cover-aspect 16:9

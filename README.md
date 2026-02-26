@@ -26,7 +26,7 @@
 
 ## 图片能力（本轮重点增强）
 
-脚本 `scripts/generate_article_assets.py` 会解析文章中的 `IMAGE` 标记并生成图片。
+脚本 `skill/scripts/generate_article_assets.py` 会解析文章中的 `IMAGE` 标记并生成图片。
 
 本轮已增强：
 - 封面文案不照搬完整标题：
@@ -46,10 +46,10 @@
 
 ## 目录结构
 
-- `SKILL.md`：完整工作流与写作规范（权威说明）
-- `scripts/generate_article_assets.py`：图片生成脚本
-- `references/personal_tone_examples.md`：个人语气样例
-- `agents/openai.yaml`：Agent 元数据
+- `skill/SKILL.md`：完整工作流与写作规范（权威说明）
+- `skill/scripts/generate_article_assets.py`：图片生成脚本
+- `skill/references/personal_tone_examples.md`：个人语气样例
+- `skill/agents/openai.yaml`：Agent 元数据
 
 ## 快速开始
 
@@ -76,7 +76,7 @@ export IMAGE_API_KEY="<your-key>"
 ### 3) 运行脚本
 
 ```bash
-python scripts/generate_article_assets.py \
+python skill/scripts/generate_article_assets.py \
   --article-file /path/to/article.txt \
   --output-dir /path/to/output/folder \
   --cover-aspect 16:9
@@ -122,4 +122,3 @@ python scripts/generate_article_assets.py \
 - 封面文案尽量短：2–8 字或关键词组合（如 `词A + 词B`）。
 - 每张插图只表达一个重点，不要把整篇文章内容塞进一张图。
 - 文章侧重真实故事、取舍和过程，功能点保持“简洁但有证据”。
-
